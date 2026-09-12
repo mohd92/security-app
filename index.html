@@ -3,196 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mfumo wa Doria - Security Patrol System</title>
-    <!-- Supabase JS -->
+    <title>Mlinzi Patrol App</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- HTML5-QRCode Library -->
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #f4f6f9; color: #1e293b; }
-        .container { max-width: 900px; margin: auto; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 25px; }
-        h1, h2 { color: #0f172a; margin-top: 0; }
-        input { width: 90%; max-width: 350px; padding: 10px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 14px; }
-        #reader { width: 100%; max-width: 350px; margin: 15px auto; }
-        #status-msg { margin-top: 15px; font-weight: bold; }
-        .success { color: #15803d; }
-        .error { color: #b91c1c; }
-        
-        /* Table Styles */
-        table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 15px; }
-        th, td { padding: 12px 15px; border: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
-        th { background: #10b981; color: white; }
-        tr:nth-child(even) { background-color: #f8fafc; }
-        .badge { background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
-        .table-container { overflow-x: auto; }
+        body { font-family: Arial, sans-serif; margin: 20px; background: #eef2f6; text-align: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        input, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
+        button { background: #10b981; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #059669; }
+        .status { margin-top: 15px; font-weight: bold; font-size: 14px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-
-    <!-- SEHEMU YA 1: SCANNER YA MLINZI -->
-    <div class="card" style="text-align: center;">
-        <h2>📷 Scan QR Code (Kituo cha Doria)</h2>
-        <p>Ingiza jina lako kisha elekeza kamera kwenye QR Code ya Kituo.</p>
-
-        <input type="text" id="guard_name" placeholder="Ingiza Jina la Mlinzi" required />
-
-        <div id="reader"></div>
-        <div id="status-msg"></div>
-    </div>
-
-    <!-- SEHEMU YA 2: DASHBOARD YA TAARIFA (REALTIME) -->
-    <div class="card">
-        <h2>🛡️ Live Patrol Logs</h2>
-        <p>Ripoti za doria zikifanyika zitaonekana hapa papo hapo:</p>
-
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Muda</th>
-                        <th>Mlinzi</th>
-                        <th>Kituo (Checkpoint)</th>
-                        <th>Hali (Status)</th>
-                        <th>GPS Lat / Lng</th>
-                    </tr>
-                </thead>
-                <tbody id="logs-table">
-                    <tr><td colspan="5">Inapakia data...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
+<div class="card">
+    <h2>📱 App ya Mlinzi (Patrol)</h2>
+    <input type="text" id="guardName" placeholder="Ingiza Jina Lako (k.m. Juma)">
+    <input type="text" id="checkpointName" placeholder="Ingiza Kituo / Scan QR Code">
+    
+    <button onclick="sendPatrolLog()">TUMA RIPOTI YA DORIA</button>
+    <div id="statusMsg" class="status"></div>
 </div>
 
 <script>
-    // Config za Supabase
     const SUPABASE_URL = 'https://ezszntsthgcfpymodizv.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6c3pudHN0aGdjZnB5bW9kaXp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMTYxNDgsImV4cCI6MjEwNDc5MjE0OH0.1SY7jyYDH2Lotuy8TcquFBWibEHHObHaFwI_jc1imp0'; 
 
     const { createClient } = supabase;
     const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let isProcessing = false;
+    async function sendPatrolLog() {
+        const guard = document.getElementById('guardName').value;
+        const checkpoint = document.getElementById('checkpointName').value;
+        const statusMsg = document.getElementById('statusMsg');
 
-    // 1. DASHBOARD LOGIC (SOMA DAFTARI LA LOGS)
-    async function fetchLogs() {
-        const { data, error } = await _supabase
-            .from('patrol_logs')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        const tbody = document.getElementById('logs-table');
-
-        if (error) {
-            console.error('Error fetching logs:', error);
-            tbody.innerHTML = `<tr><td colspan="5" style="color:red">Hitilafu: ${error.message}</td></tr>`;
+        if(!guard || !checkpoint) {
+            alert('Tafadhali jaza jina lako na kituo!');
             return;
         }
 
-        tbody.innerHTML = '';
+        statusMsg.style.color = '#2563eb';
+        statusMsg.innerText = 'Inachukua GPS na kutuma ripoti...';
 
-        if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5">Bado hakuna doria iliyorekodiwa.</td></tr>';
-            return;
-        }
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
 
-        data.forEach(log => {
-            const row = `<tr>
-                <td>${new Date(log.created_at).toLocaleString()}</td>
-                <td><strong>${log.guard_name || 'N/A'}</strong></td>
-                <td>${log.checkpoint_name || 'N/A'}</td>
-                <td><span class="badge">${log.status || 'Verified'}</span></td>
-                <td>${log.scanned_lat || '-'}, ${log.scanned_lng || '-'}</td>
-            </tr>`;
-            tbody.innerHTML += row;
+            const { data, error } = await _supabase
+                .from('patrol_logs')
+                .insert([
+                    { guard_name: guard, checkpoint_name: checkpoint, status: 'Verified', scanned_lat: lat, scanned_lng: lng }
+                ]);
+
+            if (error) {
+                statusMsg.style.color = '#dc2626';
+                statusMsg.innerText = 'Imefeli: ' + error.message;
+            } else {
+                statusMsg.style.color = '#16a34a';
+                statusMsg.innerText = '✅ Doria imerekodiwa kikamilifu!';
+                document.getElementById('checkpointName').value = '';
+            }
+        }, (err) => {
+            // Kama browser haina ruhusa ya GPS
+            statusMsg.style.color = '#dc2626';
+            statusMsg.innerText = 'Tafadhali ruhusu Location/GPS kwenye browser yako.';
         });
     }
-
-    // Realtime Listener ya Supabase
-    _supabase
-        .channel('patrol_logs')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'patrol_logs' }, payload => {
-            fetchLogs();
-        })
-        .subscribe();
-
-    // 2. SCANNER LOGIC (SCAN QR CODE NA KUTUMA DATA)
-    async function onScanSuccess(decodedText, decodedResult) {
-        if (isProcessing) return;
-
-        const guardName = document.getElementById('guard_name').value.trim();
-        const msgBox = document.getElementById('status-msg');
-
-        if (!guardName) {
-            alert("Tafadhali ingiza jina la mlinzi kwanza!");
-            return;
-        }
-
-        isProcessing = true;
-        msgBox.className = '';
-        msgBox.innerText = "Inachukua GPS na kutuma taarifa...";
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    await savePatrolLog(guardName, decodedText, position.coords.latitude, position.coords.longitude);
-                },
-                async (error) => {
-                    console.warn("GPS haijapatikana:", error.message);
-                    await savePatrolLog(guardName, decodedText, null, null);
-                },
-                { enableHighAccuracy: true, timeout: 5000 }
-            );
-        } else {
-            await savePatrolLog(guardName, decodedText, null, null);
-        }
-    }
-
-    async function savePatrolLog(guardName, checkpointName, lat, lng) {
-        const msgBox = document.getElementById('status-msg');
-
-        const { data, error } = await _supabase
-            .from('patrol_logs')
-            .insert([
-                { 
-                    guard_name: guardName, 
-                    checkpoint_name: checkpointName, 
-                    status: 'Verified',
-                    scanned_lat: lat,
-                    scanned_lng: lng
-                }
-            ]);
-
-        if (error) {
-            console.error("Error saving log:", error);
-            msgBox.className = 'error';
-            msgBox.innerText = "Hitilafu imetokea: " + error.message;
-            isProcessing = false;
-        } else {
-            msgBox.className = 'success';
-            msgBox.innerText = `✅ Imerekodiwa! Kituo: ${checkpointName}`;
-            
-            setTimeout(() => {
-                msgBox.innerText = '';
-                isProcessing = false;
-            }, 3000);
-        }
-    }
-
-    // Washa Scanner
-    let html5QrcodeScanner = new Html5QrcodeScanner(
-        "reader", 
-        { fps: 10, qrbox: { width: 220, height: 220 } }, 
-        /* verbose= */ false
-    );
-    html5QrcodeScanner.render(onScanSuccess, (err) => {});
-
-    // Pakia logs za mwanzo
-    fetchLogs();
 </script>
 
 </body>
