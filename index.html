@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mlinzi Patrol App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #eef2f6; text-align: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        input, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
+        button { background: #10b981; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #059669; }
+        .status { margin-top: 15px; font-weight: bold; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>📱 App ya Mlinzi (Patrol)</h2>
+    <input type="text" id="guardName" placeholder="Ingiza Jina Lako (k.m. Juma)">
+    <input type="text" id="checkpointName" placeholder="Ingiza Kituo / Scan QR Code">
+    
+    <button onclick="sendPatrolLog()">TUMA RIPOTI YA DORIA</button>
+    <div id="statusMsg" class="status"></div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://ezszntsthgcfpymodizv.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6c3pudHN0aGdjZnB5bW9kaXp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMTYxNDgsImV4cCI6MjEwNDc5MjE0OH0.1SY7jyYDH2Lotuy8TcquFBWibEHHObHaFwI_jc1imp0'; 
+
+    const { createClient } = supabase;
+    const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function sendPatrolLog() {
+        const guard = document.getElementById('guardName').value;
+        const checkpoint = document.getElementById('checkpointName').value;
+        const statusMsg = document.getElementById('statusMsg');
+
+        if(!guard || !checkpoint) {
+            alert('Tafadhali jaza jina lako na kituo!');
+            return;
+        }
+
+        statusMsg.style.color = '#2563eb';
+        statusMsg.innerText = 'Inachukua GPS na kutuma ripoti...';
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            const { data, error } = await _supabase
+                .from('patrol_logs')
+                .insert([
+                    { guard_name: guard, checkpoint_name: checkpoint, status: 'Verified', scanned_lat: lat, scanned_lng: lng }
+                ]);
+
+            if (error) {
+                statusMsg.style.color = '#dc2626';
+                statusMsg.innerText = 'Imefeli: ' + error.message;
+            } else {
+                statusMsg.style.color = '#16a34a';
+                statusMsg.innerText = '✅ Doria imerekodiwa kikamilifu!';
+                document.getElementById('checkpointName').value = '';
+            }
+        }, (err) => {
+            // Kama browser haina ruhusa ya GPS
+            statusMsg.style.color = '#dc2626';
+            statusMsg.innerText = 'Tafadhali ruhusu Location/GPS kwenye browser yako.';
+        });
+    }
+</script>
+
+</body>
+</html>
