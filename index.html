@@ -7,7 +7,133 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- HTML5 QRCode Library -->
+    <script src="https://unpkg.com/htm<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mlinzi Patrol App</title>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- HTML5 QRCode Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #eef2f6; text-align: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        input, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
+        button { background: #10b981; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #059669; }
+        .status { margin-top: 15px; font-weight: bold; font-size: 14px; }
+        #reader { width: 100%; margin-top: 10px; border-radius: 8px; overflow: hidden; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>📱 App ya Mlinzi (Patrol)</h2>
+    <input type="text" id="guardName" placeholder="Ingiza Jina Lako (k.m. Juma)">
+    <input type="text" id="checkpointName" placeholder="Kituo / Scan QR Code hapa">
+    
+    <!-- Eneo la Kamera ya QR Code -->
+    <div id="reader"></div>
+
+    <button onclick="sendPatrolLog()">TUMA RIPOTI YA DORIA</button>
+    <div id="statusMsg" class="status"></div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://ezszntsthgcfpymodizv.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6c3pudHN0aGdjZnB5bW9kaXp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMTYxNDgsImV4cCI6MjEwNDc5MjE0OH0.1SY7jyYDH2Lotuy8TcquFBWibEHHObHaFwI_jc1imp0'; 
+
+    const { createClient } = supabase;
+    const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let isSending = false;
+
+    async function sendPatrolLog() {
+        if (isSending) return;
+
+        const guard = document.getElementById('guardName').value.trim();
+        const checkpoint = document.getElementById('checkpointName').value.trim();
+        const statusMsg = document.getElementById('statusMsg');
+
+        if (!guard || !checkpoint) {
+            alert('Tafadhali jaza jina lako na kituo au uscan QR Code!');
+            return;
+        }
+
+        isSending = true;
+        statusMsg.style.color = '#2563eb';
+        statusMsg.innerText = 'Inatuma ripoti...';
+
+        let lat = null, lng = null;
+
+        // Jaribu kuchukua GPS kwa sekunde 2 pekee kuzuia kukwama
+        if (navigator.geolocation) {
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: false,
+                        timeout: 2000,
+                        maximumAge: 60000
+                    });
+                });
+                lat = pos.coords.latitude;
+                lng = pos.coords.longitude;
+            } catch (err) {
+                console.warn("GPS haikupatikana, inaendelea kutuma bila GPS:", err.message);
+            }
+        }
+
+        // Tuma data Supabase
+        const { data, error } = await _supabase
+            .from('patrol_logs')
+            .insert([
+                { 
+                    guard_name: guard, 
+                    checkpoint_name: checkpoint, 
+                    status: 'Verified', 
+                    scanned_lat: lat, 
+                    scanned_lng: lng 
+                }
+            ]);
+
+        if (error) {
+            statusMsg.style.color = '#dc2626';
+            statusMsg.innerText = 'Imefeli: ' + error.message;
+        } else {
+            statusMsg.style.color = '#16a34a';
+            statusMsg.innerText = '✅ Doria imerekodiwa kikamilifu!';
+            document.getElementById('checkpointName').value = '';
+            
+            setTimeout(() => {
+                statusMsg.innerText = '';
+            }, 3000);
+        }
+
+        isSending = false;
+    }
+
+    // Washa Kamera ya Nyuma moja kwa moja
+    const html5QrCode = new Html5Qrcode("reader");
+
+    html5QrCode.start(
+        { facingMode: "environment" }, // Inalazimisha kamera ya nyuma ya simu
+        { fps: 10, qrbox: { width: 200, height: 200 } },
+        (decodedText, decodedResult) => {
+            document.getElementById('checkpointName').value = decodedText;
+            sendPatrolLog();
+        },
+        (errorMessage) => {
+            // Kupuuza errors za kawaida za kutosoma frame
+        }
+    ).catch((err) => {
+        console.error("Kamera haikuweza kuwaka:", err);
+    });
+</script>
+
+</body>
+</html>l5-qrcode"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: #eef2f6; text-align: center; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
